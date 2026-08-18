@@ -1515,6 +1515,23 @@
     }
   }
 
+  function fillBucketGaps(byBucket, makeZero) {
+    // Bars are equal-width flex items, so any true zero-activity window that
+    // isn't given its own (empty) bar collapses out of the layout entirely —
+    // that desyncs bar position from elapsed time, which throws off the
+    // start/mid/end tick labels since they're placed by array position.
+    // Filling every 30-min step from min to max keeps bar position == time.
+    var present = Object.keys(byBucket).map(Number);
+    if (!present.length) return [];
+    var min = Math.min.apply(null, present), max = Math.max.apply(null, present);
+    var full = [];
+    for (var b = min; b <= max; b += 30) {
+      full.push(b);
+      if (!byBucket[b]) byBucket[b] = makeZero();
+    }
+    return full;
+  }
+
   function buildTailNote(buckets, byBucket, maxVal) {
     // Walks backward from the last bucket while activity stays low relative
     // to the day's peak, to describe a long quiet tail that'd otherwise be
@@ -1547,7 +1564,7 @@
       byBucket[r.bucket].rotations += r.rotations;
       byBucket[r.bucket].playback += r.playback;
     });
-    var buckets = Object.keys(byBucket).map(Number).sort(function (a, b) { return a - b; });
+    var buckets = fillBucketGaps(byBucket, function () { return { rotations: 0, playback: 0 }; });
     var chart = $("timeChart"), axis = $("timeChartAxis"), tailNote = $("timeChartTailNote");
     if (!buckets.length) {
       chart.innerHTML = '<div class="empty-state">No rows match the current filters</div>';
@@ -1622,7 +1639,7 @@
       if (r.bucket === null || r.bucket === undefined) return;
       byBucket[r.bucket] = (byBucket[r.bucket] || 0) + r.rotations;
     });
-    var buckets = Object.keys(byBucket).map(Number).sort(function (a, b) { return a - b; });
+    var buckets = fillBucketGaps(byBucket, function () { return 0; });
     var chart = $("evChart"), axis = $("evChartAxis");
     if (!buckets.length) {
       chart.innerHTML = '<div class="empty-state">No data for this selection</div>';

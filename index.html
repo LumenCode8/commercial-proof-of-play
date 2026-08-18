@@ -460,16 +460,21 @@
 
   .timechart {
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 2px;
-    height: 108px;
-    padding: 16px 18px 8px;
+    padding: 16px 18px 4px;
     overflow-x: auto;
   }
+  .tbar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1 0 6px;
+    min-width: 6px;
+    max-width: 15px;
+  }
   .tbar {
-    flex: 1 0 5px;
-    min-width: 5px;
-    max-width: 14px;
+    width: 100%;
     height: 80px;
     background: var(--bar-track);
     border-radius: 3px 3px 0 0;
@@ -488,13 +493,17 @@
   .tbar.in .fill { background: var(--bar); }
   .tbar.out .fill { background: var(--ink-faint); opacity: 0.35; }
   .tbar:hover .fill { filter: brightness(1.12); }
-  .timechart-axis {
-    display: flex;
-    justify-content: space-between;
-    padding: 0 18px 12px;
-    font-size: 10.5px;
+  .tbar-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 9px;
+    line-height: 1;
     color: var(--ink-faint);
+    white-space: nowrap;
+    margin-top: 6px;
+    height: 60px;
   }
+  .tbar-col:hover .tbar-label { color: var(--ink-muted); }
   .timechart-tailnote {
     display: none;
     margin: 0 18px 14px;
@@ -723,14 +732,19 @@
   }
   .ev-chart {
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 2px;
-    height: 90px;
     margin-top: 14px;
   }
-  .ev-bar {
+  .ev-bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     flex: 1 0 4px;
     max-width: 12px;
+  }
+  .ev-bar {
+    width: 100%;
     height: 72px;
     position: relative;
   }
@@ -741,12 +755,15 @@
     border-radius: 2px 2px 0 0;
     background: var(--ev-grad-green);
   }
-  .ev-chart-axis {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 6px;
-    font-size: 10px;
+  .ev-bar-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 7.5px;
+    line-height: 1;
     color: var(--ev-ink-faint);
+    white-space: nowrap;
+    margin-top: 5px;
+    height: 46px;
   }
   .ev-footer {
     display: flex;
@@ -883,7 +900,6 @@
       </div>
       <div class="panel-body">
         <div class="timechart" id="timeChart"></div>
-        <div class="timechart-axis" id="timeChartAxis"></div>
         <div class="timechart-tailnote" id="timeChartTailNote"></div>
       </div>
     </div>
@@ -985,7 +1001,6 @@
           <div class="ev-chart-explain">When this content played, in 30-minute windows — taller bars mean more activity in that window.</div>
         </div>
         <div class="ev-chart" id="evChart"></div>
-        <div class="ev-chart-axis" id="evChartAxis"></div>
       </div>
 
       <div class="ev-footer">
@@ -1565,10 +1580,9 @@
       byBucket[r.bucket].playback += r.playback;
     });
     var buckets = fillBucketGaps(byBucket, function () { return { rotations: 0, playback: 0 }; });
-    var chart = $("timeChart"), axis = $("timeChartAxis"), tailNote = $("timeChartTailNote");
+    var chart = $("timeChart"), tailNote = $("timeChartTailNote");
     if (!buckets.length) {
       chart.innerHTML = '<div class="empty-state">No rows match the current filters</div>';
-      axis.innerHTML = "";
       tailNote.className = "timechart-tailnote";
       return;
     }
@@ -1582,11 +1596,12 @@
         : Math.max(3, Math.round((v.rotations / maxVal) * 100));
       var inRange = b >= filters.timeFrom && b <= filters.timeTo;
       var title = minutesLabel(b) + "–" + minutesLabel(b + 30) + ": " + fmt(v.rotations) + " rotations, " + fmt(v.playback / 60, 0) + " min playback";
-      return '<div class="tbar ' + (inRange ? "in" : "out") + '" title="' + title + '">' +
-        '<span class="fill" style="height:' + pct + '%"></span></div>';
+      return '<div class="tbar-col">' +
+        '<div class="tbar ' + (inRange ? "in" : "out") + '" title="' + title + '">' +
+        '<span class="fill" style="height:' + pct + '%"></span></div>' +
+        '<span class="tbar-label">' + minutesLabel(b) + '</span>' +
+        '</div>';
     }).join("");
-    var ticks = [buckets[0], buckets[Math.floor(buckets.length / 2)], buckets[buckets.length - 1]];
-    axis.innerHTML = ticks.map(function (b) { return '<span>' + minutesLabel(b) + '</span>'; }).join("");
 
     var note = buildTailNote(buckets, byBucket, maxVal);
     tailNote.innerHTML = note;
@@ -1640,18 +1655,18 @@
       byBucket[r.bucket] = (byBucket[r.bucket] || 0) + r.rotations;
     });
     var buckets = fillBucketGaps(byBucket, function () { return 0; });
-    var chart = $("evChart"), axis = $("evChartAxis");
+    var chart = $("evChart");
     if (!buckets.length) {
       chart.innerHTML = '<div class="empty-state">No data for this selection</div>';
-      axis.innerHTML = "";
     } else {
       var maxVal = Math.max.apply(null, buckets.map(function (b) { return byBucket[b]; }));
       chart.innerHTML = buckets.map(function (b) {
         var pct = Math.max(3, Math.round((byBucket[b] / maxVal) * 100));
-        return '<div class="ev-bar"><span class="fill" style="height:' + pct + '%"></span></div>';
+        return '<div class="ev-bar-col">' +
+          '<div class="ev-bar"><span class="fill" style="height:' + pct + '%"></span></div>' +
+          '<span class="ev-bar-label">' + minutesLabel(b) + '</span>' +
+          '</div>';
       }).join("");
-      var ticks = [buckets[0], buckets[Math.floor(buckets.length / 2)], buckets[buckets.length - 1]];
-      axis.innerHTML = ticks.map(function (b) { return '<span>' + minutesLabel(b) + '</span>'; }).join("");
     }
   }
 

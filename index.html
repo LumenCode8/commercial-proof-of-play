@@ -1,7 +1,7 @@
 <title>Playback Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600&family=Public+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
   :root {
@@ -273,6 +273,34 @@
     cursor: pointer;
   }
 
+  /* Export bar */
+  .exportbar {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    box-shadow: var(--shadow);
+  }
+  .exportbar-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 220px; }
+  .exportbar-hint { font-size: 11.5px; color: var(--ink-faint); }
+  .client-input {
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    width: 220px;
+    max-width: 100%;
+  }
+  .client-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .client-input::placeholder { color: var(--ink-faint); }
+
   /* KPI row */
   .kpis {
     display: grid;
@@ -481,6 +509,237 @@
     .kpis { grid-template-columns: repeat(2, 1fr); }
     header { flex-direction: column; align-items: flex-start; }
   }
+
+  /* ---------------------------------------------------------------- */
+  /* Client report export — Lumen8 brand: near-black ground, the      */
+  /* logo's cyan → green → yellow gradient, Public Sans + Plus Jakarta */
+  /* Sans display. Fixed identity — does not follow the console theme. */
+  /* ---------------------------------------------------------------- */
+  #exportView {
+    --ev-bg: #0a0d10;
+    --ev-surface: #12161b;
+    --ev-line: #232b31;
+    --ev-ink: #eef4f2;
+    --ev-ink-muted: #9fb0ac;
+    --ev-ink-faint: #66756f;
+    --ev-grad: linear-gradient(90deg, #2ff3e0 0%, #7ee96b 52%, #e9f23d 100%);
+    --ev-grad-cyan: #2ff3e0;
+    --ev-grad-green: #7ee96b;
+    --ev-grad-yellow: #e9f23d;
+    display: none;
+  }
+  body.export-mode header,
+  body.export-mode #loader,
+  body.export-mode #csvLoader,
+  body.export-mode #progressLoader,
+  body.export-mode #app { display: none !important; }
+  body.export-mode #exportView { display: flex; }
+
+  #exportView {
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    padding: 32px 0 60px;
+  }
+  .ev-page {
+    width: 100%;
+    max-width: 780px;
+    background: var(--ev-surface);
+    border: 1px solid var(--ev-line);
+    border-radius: 18px;
+    padding: 40px 44px 32px;
+    box-shadow: 0 24px 60px -24px rgba(0,0,0,0.6);
+    font-family: "Public Sans", system-ui, sans-serif;
+    color: var(--ev-ink);
+  }
+  .ev-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--ev-line);
+  }
+  .ev-logo {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 0.01em;
+    background: var(--ev-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: var(--ev-grad-green);
+    white-space: nowrap;
+  }
+  .ev-logo-media {
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    color: var(--ev-grad-yellow);
+    -webkit-text-fill-color: var(--ev-grad-yellow);
+    margin-top: 2px;
+  }
+  .ev-meta { text-align: right; }
+  .ev-client {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--ev-ink);
+  }
+  .ev-scope {
+    font-size: 12px;
+    color: var(--ev-ink-muted);
+    margin-top: 2px;
+    max-width: 300px;
+  }
+  .ev-title {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ev-ink-faint);
+    margin: 22px 0 18px;
+  }
+  .ev-hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .ev-hero {
+    background: var(--ev-bg);
+    border: 1px solid var(--ev-line);
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+  .ev-hero-label {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 600;
+    font-size: 12.5px;
+    color: var(--ev-ink-muted);
+    margin-bottom: 8px;
+  }
+  .ev-hero-value {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 800;
+    font-size: 42px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    background: var(--ev-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: var(--ev-grad-green);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 10px;
+  }
+  .ev-hero-explain {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--ev-ink-muted);
+    max-width: 30ch;
+  }
+  .ev-secondary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  .ev-secondary {
+    padding: 14px 16px;
+    border: 1px solid var(--ev-line);
+    border-radius: 12px;
+  }
+  .ev-secondary-value {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--ev-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .ev-secondary-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ev-ink-muted);
+    margin: 4px 0 6px;
+  }
+  .ev-secondary-explain {
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--ev-ink-faint);
+  }
+  .ev-chart-block {
+    border: 1px solid var(--ev-line);
+    border-radius: 14px;
+    padding: 18px 20px 14px;
+  }
+  .ev-chart-head { margin-bottom: 4px; }
+  .ev-chart-title {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ev-ink);
+  }
+  .ev-chart-explain {
+    font-size: 11.5px;
+    color: var(--ev-ink-muted);
+    margin-top: 2px;
+  }
+  .ev-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 90px;
+    margin-top: 14px;
+  }
+  .ev-bar {
+    flex: 1 0 4px;
+    max-width: 12px;
+    height: 72px;
+    position: relative;
+  }
+  .ev-bar .fill {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%;
+    border-radius: 2px 2px 0 0;
+    background: var(--ev-grad-green);
+  }
+  .ev-chart-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 10px;
+    color: var(--ev-ink-faint);
+  }
+  .ev-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid var(--ev-line);
+    font-size: 10.5px;
+    color: var(--ev-ink-faint);
+  }
+  .ev-footer-brand {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .ev-controls { display: flex; gap: 10px; }
+
+  @media print {
+    @page { margin: 14mm; }
+    body { background: var(--ev-bg, #0a0d10); }
+    .no-print { display: none !important; }
+    #exportView { padding: 0; display: flex !important; }
+    .ev-page { box-shadow: none; max-width: 100%; border-radius: 0; border: none; }
+  }
 </style>
 
 <div class="wrap">
@@ -568,6 +827,15 @@
       </div>
     </div>
 
+    <div class="exportbar">
+      <div class="exportbar-text">
+        <span class="filter-label">Client report</span>
+        <span class="exportbar-hint">Exports whatever's currently filtered above — merge venues by leaving both selected, or isolate one venue/round/sponsor for a separate report.</span>
+      </div>
+      <input type="text" id="clientNameInput" class="client-input" placeholder="Client name (optional)" maxlength="60">
+      <button class="btn primary" id="exportBtn" type="button">Export client report</button>
+    </div>
+
     <div class="kpis" id="kpiRow"></div>
 
     <div class="panel">
@@ -627,6 +895,70 @@
     <footer>
       <span>Grain: round · venue · fixture · content · device · 30-min time-of-day bucket — merged and aggregated entirely client-side, nothing leaves the browser.</span>
     </footer>
+  </div>
+
+  <div id="exportView">
+    <div class="ev-page">
+      <div class="ev-header">
+        <div class="ev-logo">LUMEN8<span class="ev-logo-media">MEDIA</span></div>
+        <div class="ev-meta">
+          <div class="ev-client" id="evClientLine">Commercial playback report</div>
+          <div class="ev-scope" id="evScopeLine">—</div>
+        </div>
+      </div>
+
+      <div class="ev-title">What this report shows</div>
+
+      <div class="ev-hero-grid">
+        <div class="ev-hero">
+          <div class="ev-hero-label">Rotations per device</div>
+          <div class="ev-hero-value" id="evRotPerDevice">—</div>
+          <div class="ev-hero-explain">How many times this content played, on average, on every screen that showed it.</div>
+        </div>
+        <div class="ev-hero">
+          <div class="ev-hero-label">Avg playback per device</div>
+          <div class="ev-hero-value" id="evAvgPlaybackDevice">—</div>
+          <div class="ev-hero-explain">The average total minutes this content was on-screen, per device that carried it.</div>
+        </div>
+      </div>
+
+      <div class="ev-secondary-grid">
+        <div class="ev-secondary">
+          <div class="ev-secondary-value" id="evRotations">—</div>
+          <div class="ev-secondary-label">Total rotations</div>
+          <div class="ev-secondary-explain">The total number of times this content played, across every screen.</div>
+        </div>
+        <div class="ev-secondary">
+          <div class="ev-secondary-value" id="evDevices">—</div>
+          <div class="ev-secondary-label">Devices reached</div>
+          <div class="ev-secondary-explain">The number of distinct screens that showed this content at least once.</div>
+        </div>
+        <div class="ev-secondary">
+          <div class="ev-secondary-value" id="evTotalPlayback">—</div>
+          <div class="ev-secondary-label">Total playback</div>
+          <div class="ev-secondary-explain">The combined on-screen minutes, added up across every device and every play.</div>
+        </div>
+      </div>
+
+      <div class="ev-chart-block">
+        <div class="ev-chart-head">
+          <div class="ev-chart-title">Playback across the day</div>
+          <div class="ev-chart-explain">When this content played, in 30-minute windows — taller bars mean more activity in that window.</div>
+        </div>
+        <div class="ev-chart" id="evChart"></div>
+        <div class="ev-chart-axis" id="evChartAxis"></div>
+      </div>
+
+      <div class="ev-footer">
+        <span id="evGeneratedLine">—</span>
+        <span class="ev-footer-brand">lumen8.com.au</span>
+      </div>
+    </div>
+
+    <div class="ev-controls no-print">
+      <button class="btn" id="evBackBtn" type="button">← Back to dashboard</button>
+      <button class="btn primary" id="evPrintBtn" type="button">Print / Save as PDF</button>
+    </div>
   </div>
 
 </div>
@@ -1173,5 +1505,81 @@
     var ticks = [buckets[0], buckets[Math.floor(buckets.length / 2)], buckets[buckets.length - 1]];
     axis.innerHTML = ticks.map(function (b) { return '<span>' + minutesLabel(b) + '</span>'; }).join("");
   }
+
+  // --- Client report export ---
+
+  function buildScopeLine() {
+    var parts = [];
+    var roundsArr = uniqueSorted(Array.from(filters.rounds));
+    if (roundsArr.length) parts.push(roundsArr.map(function (r) { return "R" + r; }).join(" + "));
+    var venuesArr = uniqueSorted(Array.from(filters.venues));
+    if (venuesArr.length) parts.push(venuesArr.join(" + "));
+    parts.push(filters.event !== "ALL" ? filters.event : "All fixtures");
+    if (filters.group !== "ALL") parts.push(filters.group);
+    if (state.hasTime && filters.timeFrom !== undefined) {
+      parts.push(minutesLabel(filters.timeFrom) + "–" + minutesLabel(filters.timeTo + 30));
+    }
+    return parts.join(" · ");
+  }
+
+  function renderExportView() {
+    var rows = filteredRows();
+    var rotations = 0, playback = 0;
+    var devices = new Set();
+    rows.forEach(function (r) {
+      rotations += r.rotations;
+      playback += r.playback;
+      devices.add(r.venue + "|" + r.device);
+    });
+    var deviceCount = devices.size;
+    var playbackMin = playback / 60;
+    var rotPerDevice = deviceCount ? rotations / deviceCount : 0;
+    var avgPlaybackDevice = deviceCount ? playbackMin / deviceCount : 0;
+
+    var clientName = $("clientNameInput").value.trim();
+    $("evClientLine").textContent = clientName ? "Prepared for " + clientName : "Commercial playback report";
+    $("evScopeLine").textContent = buildScopeLine();
+
+    $("evRotPerDevice").textContent = rows.length ? fmt(rotPerDevice, 1) : "—";
+    $("evAvgPlaybackDevice").textContent = rows.length ? fmt(avgPlaybackDevice, 1) + " min" : "—";
+    $("evRotations").textContent = fmt(rotations);
+    $("evDevices").textContent = fmt(deviceCount);
+    $("evTotalPlayback").textContent = fmt(playbackMin, 0) + " min";
+
+    var today = new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
+    $("evGeneratedLine").textContent = "Generated " + today;
+
+    var byBucket = {};
+    rows.forEach(function (r) {
+      if (r.bucket === null || r.bucket === undefined) return;
+      byBucket[r.bucket] = (byBucket[r.bucket] || 0) + r.rotations;
+    });
+    var buckets = Object.keys(byBucket).map(Number).sort(function (a, b) { return a - b; });
+    var chart = $("evChart"), axis = $("evChartAxis");
+    if (!buckets.length) {
+      chart.innerHTML = '<div class="empty-state">No data for this selection</div>';
+      axis.innerHTML = "";
+    } else {
+      var maxVal = Math.max.apply(null, buckets.map(function (b) { return byBucket[b]; }));
+      chart.innerHTML = buckets.map(function (b) {
+        var pct = Math.max(3, Math.round((byBucket[b] / maxVal) * 100));
+        return '<div class="ev-bar"><span class="fill" style="height:' + pct + '%"></span></div>';
+      }).join("");
+      var ticks = [buckets[0], buckets[Math.floor(buckets.length / 2)], buckets[buckets.length - 1]];
+      axis.innerHTML = ticks.map(function (b) { return '<span>' + minutesLabel(b) + '</span>'; }).join("");
+    }
+  }
+
+  $("exportBtn").addEventListener("click", function () {
+    renderExportView();
+    document.body.classList.add("export-mode");
+    window.scrollTo(0, 0);
+  });
+  $("evBackBtn").addEventListener("click", function () {
+    document.body.classList.remove("export-mode");
+  });
+  $("evPrintBtn").addEventListener("click", function () {
+    window.print();
+  });
 })();
 </script>

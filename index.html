@@ -1,0 +1,1176 @@
+<title>Playback Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #eef1f0;
+    --surface: #ffffff;
+    --surface-2: #e6eae8;
+    --ink: #16212a;
+    --ink-muted: #5b6c74;
+    --ink-faint: #8b9aa0;
+    --line: #d5dbd9;
+    --line-strong: #b9c2bf;
+    --accent: #c07226;
+    --accent-ink: #ffffff;
+    --accent-wash: #f4e3d0;
+    --bar: #d59452;
+    --bar-track: #e4e8e6;
+    --venue-a: #0f8f74;
+    --venue-b: #7a4fd1;
+    --good: #3d7a4f;
+    --shadow: 0 1px 2px rgba(22,33,42,0.06), 0 8px 24px -12px rgba(22,33,42,0.18);
+    --radius: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10151a;
+      --surface: #171e25;
+      --surface-2: #1d252c;
+      --ink: #e7ecee;
+      --ink-muted: #93a2ac;
+      --ink-faint: #62727b;
+      --line: #2a343c;
+      --line-strong: #3a454e;
+      --accent: #e4a34c;
+      --accent-ink: #171006;
+      --accent-wash: #3a2a15;
+      --bar: #e4a34c;
+      --bar-track: #232b32;
+      --venue-a: #1fa580;
+      --venue-b: #9c7ce8;
+      --good: #6fc98a;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 28px -14px rgba(0,0,0,0.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10151a;
+    --surface: #171e25;
+    --surface-2: #1d252c;
+    --ink: #e7ecee;
+    --ink-muted: #93a2ac;
+    --ink-faint: #62727b;
+    --line: #2a343c;
+    --line-strong: #3a454e;
+    --accent: #e4a34c;
+    --accent-ink: #171006;
+    --accent-wash: #3a2a15;
+    --bar: #e4a34c;
+    --bar-track: #232b32;
+    --venue-a: #1fa580;
+    --venue-b: #9c7ce8;
+    --good: #6fc98a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 28px -14px rgba(0,0,0,0.55);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .num { font-family: "IBM Plex Mono", ui-monospace, "SF Mono", monospace; font-variant-numeric: tabular-nums; }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 24px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .title-block h1 {
+    margin: 0 0 4px;
+    font-family: "IBM Plex Sans Condensed", sans-serif;
+    font-weight: 600;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .title-block .sub {
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: 13px;
+    max-width: 46ch;
+  }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ink-muted);
+    white-space: nowrap;
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--ink-faint);
+    flex: none;
+  }
+  .dot.live { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 20%, transparent); }
+
+  /* Loader */
+  .loader {
+    background: var(--surface);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .loader > .btn, .loader > label.btn { margin-top: 1px; }
+  .loader.compact { padding: 12px 18px; }
+  .loader-icon {
+    width: 38px; height: 38px; flex: none;
+    border-radius: 8px;
+    background: var(--accent-wash);
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .loader-text { flex: 1; min-width: 220px; }
+  .loader-text .h { font-weight: 600; font-size: 14px; margin: 0 0 2px; }
+  .loader-text .d { color: var(--ink-muted); font-size: 12.5px; margin: 0; }
+  .loader-text .d + .d { margin-top: 8px; }
+  .loader-text .d + .tree { margin-top: 10px; }
+  .loader-text .tree + .d { margin-top: 10px; }
+  .tree {
+    margin: 0;
+    max-width: 560px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    line-height: 1.65;
+    color: var(--ink-faint);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 10px 14px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .tree-em { color: var(--ink); font-weight: 600; }
+  .tree-dim { color: var(--ink-faint); }
+  .tree-note { color: var(--accent); font-family: "IBM Plex Sans", sans-serif; font-weight: 500; }
+  .loader-text code {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+  }
+  .btn {
+    appearance: none;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 9px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  .btn.primary:hover { filter: brightness(1.05); }
+  input[type="file"] { display: none; }
+  .progress-track {
+    margin-top: 8px;
+    width: 100%;
+    max-width: 340px;
+    height: 6px;
+    background: var(--bar-track);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width .15s ease-out;
+  }
+
+  /* Filter bar */
+  .filterbar {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    box-shadow: var(--shadow);
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 7px; }
+  .filter-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    appearance: none;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink-muted);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 5px 11px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all .12s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--ink); }
+  .chip.on {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  .filter-group.grow { flex: 1; min-width: 200px; }
+  .time-range { display: flex; align-items: center; gap: 6px; }
+  .time-select { width: 92px; }
+  .time-sep { color: var(--ink-faint); font-size: 12px; }
+  select.chip-select {
+    width: 100%;
+    appearance: none;
+    border: 1px solid var(--line-strong);
+    background: var(--surface) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%235b6c74"/></svg>') no-repeat right 10px center;
+    color: var(--ink);
+    font: inherit;
+    font-size: 12.5px;
+    padding: 7px 28px 7px 11px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  /* KPI row */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .kpi {
+    background: var(--surface);
+    padding: 16px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .kpi .label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .kpi .value {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .kpi .unit { font-size: 12px; color: var(--ink-muted); font-weight: 500; margin-left: 3px; }
+  .kpi .foot { font-size: 11px; color: var(--ink-faint); }
+
+  /* Panels */
+  .panels {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .panel-head h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .panel-head .n { font-size: 11.5px; color: var(--ink-faint); }
+  .panel-body { padding: 6px 0 10px; }
+
+  /* Bar list */
+  .barlist { display: flex; flex-direction: column; }
+  .barrow {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 18px;
+    cursor: default;
+  }
+  .barrow:hover { background: var(--surface-2); }
+  .barrow .name {
+    font-size: 12.5px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .barrow .track {
+    grid-column: 1 / -1;
+    height: 7px;
+    background: var(--bar-track);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .barrow .fill {
+    height: 100%;
+    background: var(--bar);
+    border-radius: 4px;
+  }
+  .barrow .val {
+    font-size: 12px;
+    color: var(--ink-muted);
+    white-space: nowrap;
+  }
+  .barrow .val b { color: var(--ink); font-weight: 600; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th {
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 6px 18px;
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0;
+    background: var(--surface);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  thead th.num-col, td.num-col { text-align: right; }
+  thead th span.arrow { color: var(--accent); margin-left: 3px; }
+  tbody td { padding: 7px 18px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tbody tr:hover { background: var(--surface-2); }
+  tbody tr:last-child td { border-bottom: none; }
+  .scroll-y { max-height: 380px; overflow-y: auto; }
+
+  .venue-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-muted);
+  }
+  .venue-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+  .venue-dot.mcg { background: var(--venue-a); }
+  .venue-dot.marvel { background: var(--venue-b); }
+
+  .timechart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 108px;
+    padding: 16px 18px 8px;
+    overflow-x: auto;
+  }
+  .tbar {
+    flex: 1 0 5px;
+    min-width: 5px;
+    max-width: 14px;
+    background: var(--bar-track);
+    border-radius: 3px 3px 0 0;
+    position: relative;
+    cursor: default;
+    transition: background .1s;
+  }
+  .tbar .fill {
+    display: block;
+    width: 100%;
+    background: var(--bar-track);
+    border-radius: 3px 3px 0 0;
+    position: absolute;
+    bottom: 0; left: 0;
+  }
+  .tbar.in .fill { background: var(--bar); }
+  .tbar.out .fill { background: var(--ink-faint); opacity: 0.35; }
+  .tbar:hover .fill { filter: brightness(1.12); }
+  .timechart-axis {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 18px 12px;
+    font-size: 10.5px;
+    color: var(--ink-faint);
+  }
+
+  .empty-state {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--ink-faint);
+    font-size: 13px;
+  }
+
+  .hint {
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    padding: 10px 18px 4px;
+  }
+
+  footer {
+    color: var(--ink-faint);
+    font-size: 11.5px;
+    padding-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @media (max-width: 860px) {
+    .kpis { grid-template-columns: repeat(3, 1fr); }
+    .panels { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="title-block">
+      <h1>Playback Console</h1>
+      <p class="sub">IPTV proof-of-play delivery — MCG &amp; Marvel Stadium commercial screens</p>
+    </div>
+    <div class="status" id="statusLine">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">No data loaded</span>
+    </div>
+  </header>
+
+  <div class="loader" id="loader">
+    <div class="loader-icon">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <div class="loader-text">
+      <p class="h">Load raw exports</p>
+      <p class="d">Select the top-level folder. It needs to contain VisionEDGE's <code>Detailed_Report.csv</code> files nested three levels deep — one folder per round, then venue, then fixture:</p>
+      <pre class="tree"><span class="tree-dim">Working Directory/</span>
+  <span class="tree-em">Round 22</span>/                        <span class="tree-note">← round folder, any name matching "Round …"</span>
+    <span class="tree-em">Marvel</span>/                       <span class="tree-note">← venue folder, any name</span>
+      <span class="tree-em">Round 22_WBD v NOR</span>/         <span class="tree-note">← fixture folder, any name</span>
+        1853-qc8yA_Detailed_Report.csv
+        1854-qc8o9_Detailed_Report.csv
+    <span class="tree-em">MCG</span>/
+      <span class="tree-em">Round 22_MEL v FRE</span>/
+        2381-qdlWD_Detailed_Report.csv<span class="tree-dim">  …</span>
+  <span class="tree-em">Round 23</span>/<span class="tree-dim">  …</span></pre>
+      <p class="d">Selecting the <em>Working Directory</em> loads every round inside it at once; selecting a single <code>Round {n}</code> folder loads just that round. Venue and fixture folder names can be anything — only the round folder needs to start with "Round".</p>
+    </div>
+    <label class="btn primary" for="folderInput">Choose folder…</label>
+    <input type="file" id="folderInput" webkitdirectory directory multiple>
+  </div>
+
+  <div class="loader compact" id="csvLoader">
+    <div class="loader-text">
+      <p class="h">Or load a pre-aggregated CSV</p>
+      <p class="d">Already have <code>dashboard_data.csv</code> from <code>duckdb &lt; export_dashboard_data.sql</code>? Load that instead — faster for large archives.</p>
+    </div>
+    <label class="btn" for="fileInput">Choose CSV…</label>
+    <input type="file" id="fileInput" accept=".csv,text/csv">
+  </div>
+
+  <div class="loader" id="progressLoader" style="display:none;">
+    <div class="loader-icon">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    </div>
+    <div class="loader-text">
+      <p class="h" id="progressHead">Merging exports…</p>
+      <p class="d" id="progressDetail">—</p>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+  </div>
+
+  <div id="app" style="display:none; flex-direction: column; gap: 16px;">
+
+    <div class="filterbar">
+      <div class="filter-group">
+        <span class="filter-label">Round</span>
+        <div class="chips" id="roundChips"></div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Venue</span>
+        <div class="chips" id="venueChips"></div>
+      </div>
+      <div class="filter-group grow">
+        <span class="filter-label">Fixture</span>
+        <select class="chip-select" id="eventSelect"></select>
+      </div>
+      <div class="filter-group grow">
+        <span class="filter-label">Content group</span>
+        <select class="chip-select" id="groupSelect"></select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Time of day</span>
+        <div class="time-range">
+          <select class="chip-select time-select" id="timeFromSelect"></select>
+          <span class="time-sep">–</span>
+          <select class="chip-select time-select" id="timeToSelect"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpis" id="kpiRow"></div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Playback by time of day</h2>
+        <span class="n" id="timeChartNote">30-min windows, by rotation start time</span>
+      </div>
+      <div class="panel-body">
+        <div class="timechart" id="timeChart"></div>
+        <div class="timechart-axis" id="timeChartAxis"></div>
+      </div>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Rotations by content</h2>
+          <span class="n" id="contentCount">—</span>
+        </div>
+        <div class="panel-body">
+          <div class="barlist scroll-y" id="barlist"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Devices by venue</h2>
+          <span class="n" id="zoneCount">—</span>
+        </div>
+        <div class="panel-body scroll-y">
+          <table>
+            <thead>
+              <tr>
+                <th data-sort="zone">Venue</th>
+                <th data-sort="devices" class="num-col">Devices</th>
+                <th data-sort="rotations" class="num-col">Rotations</th>
+                <th data-sort="playback" class="num-col">Playback&nbsp;(min)</th>
+              </tr>
+            </thead>
+            <tbody id="zoneBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="loader compact" id="reloader" style="display:none;">
+      <div class="loader-text">
+        <p class="h">Swap dataset</p>
+        <p class="d" id="loadedFileLine">—</p>
+      </div>
+      <label class="btn" for="folderInput2">Load different folder…</label>
+      <input type="file" id="folderInput2" webkitdirectory directory multiple>
+      <label class="btn" for="fileInput2">Load CSV…</label>
+      <input type="file" id="fileInput2" accept=".csv,text/csv">
+    </div>
+
+    <footer>
+      <span>Grain: round · venue · fixture · content · device · 30-min time-of-day bucket — merged and aggregated entirely client-side, nothing leaves the browser.</span>
+    </footer>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var state = { rows: [], fileName: "" };
+  var filters = { rounds: new Set(), venues: new Set(), event: "ALL", group: "ALL" };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function parseCSV(text) {
+    var rows = [];
+    var i = 0, len = text.length;
+    var field = "", row = [], inQuotes = false;
+    function pushField() { row.push(field); field = ""; }
+    function pushRow() { rows.push(row); row = []; }
+    while (i < len) {
+      var c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+          inQuotes = false; i++; continue;
+        }
+        field += c; i++; continue;
+      } else {
+        if (c === '"') { inQuotes = true; i++; continue; }
+        if (c === ',') { pushField(); i++; continue; }
+        if (c === '\r') { i++; continue; }
+        if (c === '\n') { pushField(); pushRow(); i++; continue; }
+        field += c; i++; continue;
+      }
+    }
+    if (field.length || row.length) { pushField(); pushRow(); }
+    if (rows.length && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === "") rows.pop();
+    return rows;
+  }
+
+  function loadFile(file) {
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        var table = parseCSV(e.target.result);
+        var header = table[0].map(function (h) { return h.trim(); });
+        var idx = {
+          Round: header.indexOf("Round"),
+          Venue: header.indexOf("Venue"),
+          Event: header.indexOf("Event"),
+          ContentGroup: header.indexOf("ContentGroup"),
+          Content: header.indexOf("Content"),
+          Device: header.indexOf("Device"),
+          TimeBucketMin: header.indexOf("TimeBucketMin"),
+          Rotations: header.indexOf("Rotations"),
+          PlaybackSeconds: header.indexOf("PlaybackSeconds")
+        };
+        var hasTime = idx.TimeBucketMin >= 0;
+        var rows = [];
+        for (var r = 1; r < table.length; r++) {
+          var t = table[r];
+          if (!t || t.length < 2) continue;
+          rows.push({
+            round: t[idx.Round],
+            venue: t[idx.Venue],
+            event: t[idx.Event],
+            group: t[idx.ContentGroup] || "(Ungrouped)",
+            content: t[idx.Content],
+            device: t[idx.Device],
+            bucket: hasTime ? (parseInt(t[idx.TimeBucketMin], 10) || 0) : null,
+            rotations: parseInt(t[idx.Rotations], 10) || 0,
+            playback: parseFloat(t[idx.PlaybackSeconds]) || 0
+          });
+        }
+        state.hasTime = hasTime;
+        state.rows = rows;
+        state.fileName = file.name;
+        onDataLoaded();
+      } catch (err) {
+        alert("Couldn't parse that file — is it dashboard_data.csv? " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  $("fileInput").addEventListener("change", function (e) { loadFile(e.target.files[0]); });
+  $("fileInput2").addEventListener("change", function (e) { loadFile(e.target.files[0]); });
+
+  // --- Raw VisionEDGE export ingestion (replaces merge single round.py + export_dashboard_data.sql) ---
+
+  var COLUMN_BASE_ALIASES = { "MAC/IP": "Address", "MAC": "Address", "IP": "Address" };
+  var REQUIRED_BASES = ["Content", "Time Played", "Airtime"];
+
+  function baseName(header) {
+    return header.replace(/\(.*\)\s*$/, "").trim();
+  }
+
+  function deriveContentGroup(content) {
+    var m = /^(.*?)(?:_| - |$)/.exec(content || "");
+    return (m && m[1]) ? m[1] : "(Ungrouped)";
+  }
+
+  var sydneyOffsetCache = {};
+  function sydneyOffsetMinutes(epochMs) {
+    var dayKey = Math.floor(epochMs / 86400000);
+    if (sydneyOffsetCache[dayKey] !== undefined) return sydneyOffsetCache[dayKey];
+    var parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Australia/Sydney", hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit"
+    }).formatToParts(new Date(epochMs));
+    var map = {};
+    parts.forEach(function (p) { map[p.type] = p.value; });
+    var asIfUTC = Date.UTC(+map.year, +map.month - 1, +map.day, +map.hour === 24 ? 0 : +map.hour, +map.minute, +map.second);
+    var offset = Math.round((asIfUTC - epochMs) / 60000);
+    sydneyOffsetCache[dayKey] = offset;
+    return offset;
+  }
+
+  function airtimeMinuteOfDay(epochMs) {
+    var offset = sydneyOffsetMinutes(epochMs);
+    var localMs = epochMs + offset * 60000;
+    var d = new Date(localMs);
+    var totalSec = d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds();
+    return Math.round(totalSec / 60) % 1440;
+  }
+
+  function readFileText(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function (e) { resolve(e.target.result); };
+      reader.onerror = function () { reject(new Error("Couldn't read " + file.name)); };
+      reader.readAsText(file);
+    });
+  }
+
+  function yieldToUI() {
+    return new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
+  }
+
+  function pathSegments(file) {
+    var p = file.webkitRelativePath || file.name;
+    return p.split("/");
+  }
+
+  function classifyFile(file) {
+    var segs = pathSegments(file);
+    var roundIdx = -1, roundNum = null;
+    for (var i = 0; i < segs.length; i++) {
+      var m = /^Round\s+(\S+)/i.exec(segs[i]);
+      if (m) { roundIdx = i; roundNum = m[1]; break; }
+    }
+    if (roundIdx < 0) return null;
+    var venue = segs[roundIdx + 1] || "Unknown venue";
+    var event = segs[roundIdx + 2] || file.name.replace(/\.csv$/i, "");
+    return { round: roundNum, venue: venue, event: event };
+  }
+
+  function processRawCSV(text, ctx, agg, counters) {
+    var table = parseCSV(text);
+    if (!table.length) return;
+    var header = table[0];
+    var colIdx = {};
+    for (var c = 0; c < header.length; c++) {
+      var base = baseName(header[c]);
+      if (COLUMN_BASE_ALIASES[base]) colIdx.Address = c;
+      else colIdx[base] = c;
+    }
+    var missing = REQUIRED_BASES.filter(function (b) { return colIdx[b] === undefined; });
+    if (missing.length || colIdx.Address === undefined) {
+      counters.badFiles.push(ctx.fileName + " (missing columns: " + missing.concat(colIdx.Address === undefined ? ["Address/MAC/IP"] : []).join(", ") + ")");
+      return;
+    }
+    for (var r = 1; r < table.length; r++) {
+      var row = table[r];
+      if (!row || row.length < 2) continue;
+      var content = row[colIdx.Content];
+      var address = row[colIdx.Address];
+      var timePlayed = parseFloat(row[colIdx["Time Played"]]);
+      var airtime = parseInt(row[colIdx.Airtime], 10);
+      if (!content || !address || !isFinite(timePlayed) || !isFinite(airtime)) { counters.skippedRows++; continue; }
+
+      var bucket = Math.floor(airtimeMinuteOfDay(airtime) / 30) * 30;
+      var group = deriveContentGroup(content);
+      var key = ctx.round + "|" + ctx.venue + "|" + ctx.event + "|" + group + "|" + content + "|" + address + "|" + bucket;
+      var entry = agg[key];
+      if (!entry) { entry = agg[key] = { round: ctx.round, venue: ctx.venue, event: ctx.event, group: group, content: content, device: address, bucket: bucket, rotations: 0, playback: 0 }; }
+      entry.rotations += 1;
+      entry.playback += Math.round(timePlayed);
+      counters.rows++;
+    }
+  }
+
+  async function processRawFiles(fileList) {
+    var files = Array.from(fileList).filter(function (f) { return /\.csv$/i.test(f.name); });
+    if (!files.length) { alert("No .csv files found in that folder."); return; }
+
+    $("loader").style.display = "none";
+    $("csvLoader").style.display = "none";
+    $("reloader").style.display = "none";
+    $("progressLoader").style.display = "flex";
+    $("app").style.display = "none";
+
+    var agg = {};
+    var counters = { rows: 0, skippedRows: 0, badFiles: [] };
+    var unclassified = 0;
+
+    for (var i = 0; i < files.length; i++) {
+      var file = files[i];
+      $("progressHead").textContent = "Merging exports… (" + (i + 1) + " / " + files.length + ")";
+      $("progressDetail").textContent = file.webkitRelativePath || file.name;
+      $("progressFill").style.width = Math.round(((i) / files.length) * 100) + "%";
+      await yieldToUI();
+
+      var ctx = classifyFile(file);
+      if (!ctx) { unclassified++; continue; }
+      ctx.fileName = file.name;
+      try {
+        var text = await readFileText(file);
+        processRawCSV(text, ctx, agg, counters);
+      } catch (err) {
+        counters.badFiles.push(file.name + " (" + err.message + ")");
+      }
+    }
+
+    $("progressFill").style.width = "100%";
+
+    var rows = Object.keys(agg).map(function (k) { return agg[k]; });
+    if (!rows.length) {
+      $("progressLoader").style.display = "none";
+      $("loader").style.display = "flex";
+      $("csvLoader").style.display = "flex";
+      alert("Couldn't find any usable rows. Make sure the folder contains Round {n}/Venue/Fixture/*.csv exports." +
+        (unclassified ? " " + unclassified + " file(s) weren't inside a \"Round …\" folder." : "") +
+        (counters.badFiles.length ? "\n\nFiles with unrecognised columns:\n" + counters.badFiles.slice(0, 5).join("\n") : ""));
+      return;
+    }
+
+    state.hasTime = true;
+    state.rows = rows;
+    var roundSet = uniqueSorted(rows.map(function (r) { return r.round; }));
+    state.fileName = files.length + " raw export" + (files.length === 1 ? "" : "s") + " merged in-browser — Round " + roundSet.join(", ");
+
+    $("progressLoader").style.display = "none";
+    onDataLoaded();
+
+    if (unclassified || counters.badFiles.length || counters.skippedRows) {
+      var notes = [];
+      if (unclassified) notes.push(unclassified + " file(s) skipped (not inside a \"Round …\" folder)");
+      if (counters.badFiles.length) notes.push(counters.badFiles.length + " file(s) skipped (unrecognised columns)");
+      if (counters.skippedRows) notes.push(counters.skippedRows.toLocaleString() + " row(s) skipped (missing content/device/time data)");
+      $("loadedFileLine").textContent = state.fileName + " — " + counters.rows.toLocaleString() + " rows merged. " + notes.join("; ") + ".";
+    }
+  }
+
+  $("folderInput").addEventListener("change", function (e) { processRawFiles(e.target.files); });
+  $("folderInput2").addEventListener("change", function (e) { processRawFiles(e.target.files); });
+
+  function uniqueSorted(arr) {
+    return Array.from(new Set(arr)).sort();
+  }
+
+  function onDataLoaded() {
+    var rows = state.rows;
+    filters.rounds = new Set(uniqueSorted(rows.map(function (r) { return r.round; })));
+    filters.venues = new Set(uniqueSorted(rows.map(function (r) { return r.venue; })));
+    filters.event = "ALL";
+    filters.group = "ALL";
+
+    $("loader").style.display = "none";
+    $("csvLoader").style.display = "none";
+    $("progressLoader").style.display = "none";
+    $("app").style.display = "flex";
+    $("reloader").style.display = "flex";
+    $("loadedFileLine").textContent = state.fileName + " — " + rows.length.toLocaleString() + " rows loaded";
+    $("statusDot").className = "dot live";
+    $("statusText").textContent = state.fileName;
+
+    document.querySelector(".time-range").parentElement.style.display = state.hasTime ? "" : "none";
+    $("timeChart").parentElement.parentElement.style.display = state.hasTime ? "" : "none";
+
+    buildRoundChips();
+    buildVenueChips();
+    buildEventSelect();
+    buildGroupSelect();
+    if (state.hasTime) buildTimeSelects();
+    render();
+  }
+
+  function minutesLabel(m) {
+    var h = Math.floor(m / 60) % 24;
+    var mm = m % 60;
+    var ap = h < 12 ? "am" : "pm";
+    var h12 = h % 12; if (h12 === 0) h12 = 12;
+    return h12 + ":" + (mm < 10 ? "0" : "") + mm + ap;
+  }
+
+  function buildTimeSelects() {
+    var buckets = uniqueSorted(state.rows.map(function (r) { return r.bucket; })).sort(function (a, b) { return a - b; });
+    if (!buckets.length) return;
+    var min = buckets[0], max = buckets[buckets.length - 1];
+    filters.timeFrom = min;
+    filters.timeTo = max;
+
+    var fromSel = $("timeFromSelect"), toSel = $("timeToSelect");
+    fromSel.innerHTML = ""; toSel.innerHTML = "";
+    buckets.forEach(function (b) {
+      var o1 = document.createElement("option"); o1.value = b; o1.textContent = minutesLabel(b);
+      fromSel.appendChild(o1);
+      var o2 = document.createElement("option"); o2.value = b; o2.textContent = minutesLabel(b + 30);
+      toSel.appendChild(o2);
+    });
+    fromSel.value = min;
+    toSel.value = max;
+
+    fromSel.onchange = function () {
+      filters.timeFrom = parseInt(fromSel.value, 10);
+      if (filters.timeFrom > filters.timeTo) { filters.timeTo = filters.timeFrom; toSel.value = filters.timeFrom; }
+      render();
+    };
+    toSel.onchange = function () {
+      filters.timeTo = parseInt(toSel.value, 10);
+      if (filters.timeTo < filters.timeFrom) { filters.timeFrom = filters.timeTo; fromSel.value = filters.timeTo; }
+      render();
+    };
+  }
+
+  function buildRoundChips() {
+    var rounds = uniqueSorted(state.rows.map(function (r) { return r.round; }));
+    var el = $("roundChips");
+    el.innerHTML = "";
+    rounds.forEach(function (rnd) {
+      var b = document.createElement("button");
+      b.className = "chip on";
+      b.textContent = "R" + rnd;
+      b.dataset.round = rnd;
+      b.addEventListener("click", function () {
+        if (filters.rounds.has(rnd)) { filters.rounds.delete(rnd); } else { filters.rounds.add(rnd); }
+        b.classList.toggle("on");
+        buildEventSelect();
+        buildGroupSelect();
+        render();
+      });
+      el.appendChild(b);
+    });
+  }
+
+  function buildVenueChips() {
+    var venues = uniqueSorted(state.rows.map(function (r) { return r.venue; }));
+    var el = $("venueChips");
+    el.innerHTML = "";
+    venues.forEach(function (v) {
+      var b = document.createElement("button");
+      b.className = "chip on";
+      b.textContent = v;
+      b.dataset.venue = v;
+      b.addEventListener("click", function () {
+        if (filters.venues.has(v)) { filters.venues.delete(v); } else { filters.venues.add(v); }
+        b.classList.toggle("on");
+        buildEventSelect();
+        buildGroupSelect();
+        render();
+      });
+      el.appendChild(b);
+    });
+  }
+
+  function baseFilteredRows(skip) {
+    return state.rows.filter(function (r) {
+      if (skip !== "round" && !filters.rounds.has(r.round)) return false;
+      if (skip !== "venue" && !filters.venues.has(r.venue)) return false;
+      return true;
+    });
+  }
+
+  function buildEventSelect() {
+    var rows = baseFilteredRows("event");
+    var events = uniqueSorted(rows.map(function (r) { return r.event; }));
+    var sel = $("eventSelect");
+    var prev = filters.event;
+    sel.innerHTML = '<option value="ALL">All fixtures (' + events.length + ')</option>';
+    events.forEach(function (ev) {
+      var o = document.createElement("option");
+      o.value = ev; o.textContent = ev;
+      sel.appendChild(o);
+    });
+    sel.value = events.indexOf(prev) >= 0 ? prev : "ALL";
+    filters.event = sel.value;
+    sel.onchange = function () { filters.event = sel.value; render(); };
+  }
+
+  function buildGroupSelect() {
+    var rows = baseFilteredRows();
+    var groups = uniqueSorted(rows.map(function (r) { return r.group; }));
+    var sel = $("groupSelect");
+    var prev = filters.group;
+    sel.innerHTML = '<option value="ALL">All content groups (' + groups.length + ')</option>';
+    groups.forEach(function (g) {
+      var o = document.createElement("option");
+      o.value = g; o.textContent = g;
+      sel.appendChild(o);
+    });
+    sel.value = groups.indexOf(prev) >= 0 ? prev : "ALL";
+    filters.group = sel.value;
+    sel.onchange = function () { filters.group = sel.value; render(); };
+  }
+
+  function filteredRows(skipTime) {
+    return state.rows.filter(function (r) {
+      if (!filters.rounds.has(r.round)) return false;
+      if (!filters.venues.has(r.venue)) return false;
+      if (filters.event !== "ALL" && r.event !== filters.event) return false;
+      if (filters.group !== "ALL" && r.group !== filters.group) return false;
+      if (!skipTime && state.hasTime && (r.bucket < filters.timeFrom || r.bucket > filters.timeTo)) return false;
+      return true;
+    });
+  }
+
+  function fmt(n, d) {
+    if (d === undefined) d = 0;
+    return Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+
+  function kpiTile(label, value, unit, foot) {
+    return '<div class="kpi"><span class="label">' + label + '</span>' +
+      '<span class="value num">' + value + (unit ? '<span class="unit">' + unit + '</span>' : '') + '</span>' +
+      (foot ? '<span class="foot">' + foot + '</span>' : '') + '</div>';
+  }
+
+  function render() {
+    var rows = filteredRows();
+
+    var rotations = 0, playback = 0;
+    var devices = new Set(), events = new Set();
+    rows.forEach(function (r) {
+      rotations += r.rotations;
+      playback += r.playback;
+      devices.add(r.venue + "|" + r.device);
+      events.add(r.event);
+    });
+    var deviceCount = devices.size;
+    var playbackMin = playback / 60;
+    var rotPerDevice = deviceCount ? rotations / deviceCount : 0;
+    var avgPlaybackDevice = deviceCount ? playbackMin / deviceCount : 0;
+    var avgRotationSec = rotations ? playback / rotations : 0;
+
+    $("kpiRow").innerHTML =
+      kpiTile("Rotations", fmt(rotations), "", events.size + " fixture" + (events.size === 1 ? "" : "s")) +
+      kpiTile("Devices", fmt(deviceCount)) +
+      kpiTile("Rotations / device", fmt(rotPerDevice, 1)) +
+      kpiTile("Total playback", fmt(playbackMin, 0), "min") +
+      kpiTile("Avg playback / device", fmt(avgPlaybackDevice, 1), "min") +
+      kpiTile("Avg playback / rotation", fmt(avgRotationSec, 1), "s");
+
+    if (state.hasTime) renderTimeChart();
+
+    // Content breakdown
+    var byContent = {};
+    rows.forEach(function (r) {
+      var k = r.content;
+      if (!byContent[k]) byContent[k] = { rotations: 0, playback: 0, devices: new Set() };
+      byContent[k].rotations += r.rotations;
+      byContent[k].playback += r.playback;
+      byContent[k].devices.add(r.venue + "|" + r.device);
+    });
+    var contentList = Object.keys(byContent).map(function (k) {
+      return { name: k, rotations: byContent[k].rotations, playback: byContent[k].playback, devices: byContent[k].devices.size };
+    }).sort(function (a, b) { return b.rotations - a.rotations; });
+
+    $("contentCount").textContent = contentList.length + " item" + (contentList.length === 1 ? "" : "s");
+    var maxRot = contentList.length ? contentList[0].rotations : 1;
+    var barlist = $("barlist");
+    if (!contentList.length) {
+      barlist.innerHTML = '<div class="empty-state">No rows match the current filters</div>';
+    } else {
+      barlist.innerHTML = contentList.slice(0, 40).map(function (c) {
+        var pct = Math.max(2, Math.round((c.rotations / maxRot) * 100));
+        var short = c.name.length > 52 ? c.name.slice(0, 49) + "…" : c.name;
+        return '<div class="barrow" title="' + c.name.replace(/"/g, "&quot;") + '">' +
+          '<span class="name">' + short + '</span>' +
+          '<span class="val"><b class="num">' + fmt(c.rotations) + '</b> rot · ' + c.devices + ' dev</span>' +
+          '<div class="track"><div class="fill" style="width:' + pct + '%"></div></div>' +
+          '</div>';
+      }).join("");
+    }
+
+    // Venue breakdown
+    var byVenue = {};
+    rows.forEach(function (r) {
+      var k = r.venue;
+      if (!byVenue[k]) byVenue[k] = { rotations: 0, playback: 0, devices: new Set() };
+      byVenue[k].rotations += r.rotations;
+      byVenue[k].playback += r.playback;
+      byVenue[k].devices.add(r.device);
+    });
+    var venueList = Object.keys(byVenue).map(function (k) {
+      return { zone: k, rotations: byVenue[k].rotations, playback: byVenue[k].playback, devices: byVenue[k].devices.size };
+    }).sort(function (a, b) { return b.devices - a.devices; });
+
+    $("zoneCount").textContent = venueList.length + " venue" + (venueList.length === 1 ? "" : "s");
+    var zoneBody = $("zoneBody");
+    if (!venueList.length) {
+      zoneBody.innerHTML = '<tr><td colspan="4" class="empty-state">No rows match the current filters</td></tr>';
+    } else {
+      zoneBody.innerHTML = venueList.map(function (v) {
+        var cls = v.zone.toUpperCase().indexOf("MCG") >= 0 ? "mcg" : "marvel";
+        return '<tr>' +
+          '<td><span class="venue-badge"><span class="venue-dot ' + cls + '"></span>' + v.zone + '</span></td>' +
+          '<td class="num-col num">' + fmt(v.devices) + '</td>' +
+          '<td class="num-col num">' + fmt(v.rotations) + '</td>' +
+          '<td class="num-col num">' + fmt(v.playback / 60, 0) + '</td>' +
+          '</tr>';
+      }).join("");
+    }
+  }
+
+  function renderTimeChart() {
+    // Full-day distribution ignores the time filter itself, so moving the
+    // range doesn't shrink the axis it's being set against.
+    var rows = filteredRows(true);
+    var byBucket = {};
+    rows.forEach(function (r) {
+      if (!byBucket[r.bucket]) byBucket[r.bucket] = { rotations: 0, playback: 0 };
+      byBucket[r.bucket].rotations += r.rotations;
+      byBucket[r.bucket].playback += r.playback;
+    });
+    var buckets = Object.keys(byBucket).map(Number).sort(function (a, b) { return a - b; });
+    var chart = $("timeChart"), axis = $("timeChartAxis");
+    if (!buckets.length) {
+      chart.innerHTML = '<div class="empty-state">No rows match the current filters</div>';
+      axis.innerHTML = "";
+      return;
+    }
+    var maxVal = Math.max.apply(null, buckets.map(function (b) { return byBucket[b].rotations; }));
+    chart.innerHTML = buckets.map(function (b) {
+      var v = byBucket[b];
+      var pct = Math.max(3, Math.round((v.rotations / maxVal) * 100));
+      var inRange = b >= filters.timeFrom && b <= filters.timeTo;
+      var title = minutesLabel(b) + "–" + minutesLabel(b + 30) + ": " + fmt(v.rotations) + " rotations, " + fmt(v.playback / 60, 0) + " min playback";
+      return '<div class="tbar ' + (inRange ? "in" : "out") + '" title="' + title + '">' +
+        '<span class="fill" style="height:' + pct + '%"></span></div>';
+    }).join("");
+    var ticks = [buckets[0], buckets[Math.floor(buckets.length / 2)], buckets[buckets.length - 1]];
+    axis.innerHTML = ticks.map(function (b) { return '<span>' + minutesLabel(b) + '</span>'; }).join("");
+  }
+})();
+</script>

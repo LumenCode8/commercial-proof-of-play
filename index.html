@@ -358,6 +358,32 @@
     font-weight: 700;
   }
   .panel-head .n { font-size: 11.5px; color: var(--ink-faint); }
+  .time-panel-head { align-items: center; }
+  .time-panel-head > div:first-child { display: flex; flex-direction: column; gap: 2px; }
+  .scale-toggle {
+    display: flex;
+    gap: 3px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 3px;
+    border-radius: 8px;
+    flex: none;
+  }
+  .scale-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--ink-faint);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 11px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .scale-btn:hover { color: var(--ink-muted); }
+  .scale-btn.on { background: var(--surface-2); color: var(--ink); }
   .panel-body { padding: 6px 0 10px; }
 
   /* Bar list */
@@ -469,6 +495,19 @@
     font-size: 10.5px;
     color: var(--ink-faint);
   }
+  .timechart-tailnote {
+    display: none;
+    margin: 0 18px 14px;
+    padding: 9px 12px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--ink-faint);
+  }
+  .timechart-tailnote.show { display: block; }
+  .timechart-tailnote strong { color: var(--ink-muted); font-weight: 600; }
 
   .empty-state {
     padding: 48px 24px;
@@ -832,13 +871,20 @@
     <div class="kpis" id="kpiRow"></div>
 
     <div class="panel">
-      <div class="panel-head">
-        <h2>Playback by time of day</h2>
-        <span class="n" id="timeChartNote">30-min windows, by rotation start time</span>
+      <div class="panel-head time-panel-head">
+        <div>
+          <h2>Playback by time of day</h2>
+          <span class="n" id="timeChartNote">30-min windows, by rotation start time</span>
+        </div>
+        <div class="scale-toggle" id="scaleToggle">
+          <button type="button" class="scale-btn on" data-scale="linear">Linear</button>
+          <button type="button" class="scale-btn" data-scale="log">Log</button>
+        </div>
       </div>
       <div class="panel-body">
         <div class="timechart" id="timeChart"></div>
         <div class="timechart-axis" id="timeChartAxis"></div>
+        <div class="timechart-tailnote" id="timeChartTailNote"></div>
       </div>
     </div>
 
@@ -960,7 +1006,7 @@
 (function () {
   "use strict";
 
-  var state = { rows: [], fileName: "" };
+  var state = { rows: [], fileName: "", timeScale: "linear" };
   var filters = { rounds: new Set(), venues: new Set(), event: "ALL", group: "ALL" };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -1469,6 +1515,28 @@
     }
   }
 
+  function buildTailNote(buckets, byBucket, maxVal) {
+    // Walks backward from the last bucket while activity stays low relative
+    // to the day's peak, to describe a long quiet tail that'd otherwise be
+    // squashed to near-invisible bars next to a single busy hour.
+    var threshold = maxVal * 0.15;
+    var i = buckets.length - 1;
+    var tailVals = [];
+    while (i >= 0 && byBucket[buckets[i]].rotations <= threshold) {
+      tailVals.push(byBucket[buckets[i]].rotations);
+      i--;
+    }
+    var tailBuckets = buckets.slice(i + 1);
+    if (tailBuckets.length < 2) return "";
+    var lo = Math.min.apply(null, tailVals), hi = Math.max.apply(null, tailVals);
+    var range = lo === hi ? fmt(lo) : fmt(lo) + "–" + fmt(hi);
+    var startLabel = minutesLabel(tailBuckets[0]);
+    var endLabel = minutesLabel(tailBuckets[tailBuckets.length - 1] + 30);
+    return "Activity continues at <strong>" + range + " rotations/30-min window</strong> from " +
+      startLabel + " through " + endLabel + " — small relative to the day's peak, so it reads as flat on this chart. " +
+      "Switch to <strong>Log</strong> scale above to see it, or hover a bar for exact figures.";
+  }
+
   function renderTimeChart() {
     // Full-day distribution ignores the time filter itself, so moving the
     // range doesn't shrink the axis it's being set against.
@@ -1480,16 +1548,21 @@
       byBucket[r.bucket].playback += r.playback;
     });
     var buckets = Object.keys(byBucket).map(Number).sort(function (a, b) { return a - b; });
-    var chart = $("timeChart"), axis = $("timeChartAxis");
+    var chart = $("timeChart"), axis = $("timeChartAxis"), tailNote = $("timeChartTailNote");
     if (!buckets.length) {
       chart.innerHTML = '<div class="empty-state">No rows match the current filters</div>';
       axis.innerHTML = "";
+      tailNote.className = "timechart-tailnote";
       return;
     }
     var maxVal = Math.max.apply(null, buckets.map(function (b) { return byBucket[b].rotations; }));
+    var maxLog = Math.log(maxVal + 1);
+    var useLog = state.timeScale === "log";
     chart.innerHTML = buckets.map(function (b) {
       var v = byBucket[b];
-      var pct = Math.max(3, Math.round((v.rotations / maxVal) * 100));
+      var pct = useLog
+        ? Math.max(3, Math.round((Math.log(v.rotations + 1) / maxLog) * 100))
+        : Math.max(3, Math.round((v.rotations / maxVal) * 100));
       var inRange = b >= filters.timeFrom && b <= filters.timeTo;
       var title = minutesLabel(b) + "–" + minutesLabel(b + 30) + ": " + fmt(v.rotations) + " rotations, " + fmt(v.playback / 60, 0) + " min playback";
       return '<div class="tbar ' + (inRange ? "in" : "out") + '" title="' + title + '">' +
@@ -1497,6 +1570,10 @@
     }).join("");
     var ticks = [buckets[0], buckets[Math.floor(buckets.length / 2)], buckets[buckets.length - 1]];
     axis.innerHTML = ticks.map(function (b) { return '<span>' + minutesLabel(b) + '</span>'; }).join("");
+
+    var note = buildTailNote(buckets, byBucket, maxVal);
+    tailNote.innerHTML = note;
+    tailNote.className = "timechart-tailnote" + (note ? " show" : "");
   }
 
   // --- Client report export ---
@@ -1560,6 +1637,15 @@
       axis.innerHTML = ticks.map(function (b) { return '<span>' + minutesLabel(b) + '</span>'; }).join("");
     }
   }
+
+  Array.from($("scaleToggle").children).forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (state.timeScale === btn.dataset.scale) return;
+      state.timeScale = btn.dataset.scale;
+      Array.from($("scaleToggle").children).forEach(function (b) { b.classList.toggle("on", b === btn); });
+      renderTimeChart();
+    });
+  });
 
   $("exportBtn").addEventListener("click", function () {
     renderExportView();

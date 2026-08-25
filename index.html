@@ -1,4 +1,5 @@
 <title>Commercial - IPTV playback report</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0%25' stop-color='%232ff3e0'/%3E%3Cstop offset='52%25' stop-color='%237ee96b'/%3E%3Cstop offset='100%25' stop-color='%23e9f23d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%230a0d10'/%3E%3Crect width='64' height='64' rx='14' fill='none' stroke='url(%23g)' stroke-width='3'/%3E%3Cpath d='M25 20 L46 32 L25 44 Z' fill='url(%23g)'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -1378,6 +1379,14 @@
     return h12 + ":" + (mm < 10 ? "0" : "") + mm + ap;
   }
 
+  // Label for the END of a bucket (b+30). A bucket ending exactly at
+  // midnight wraps back to "12:00am", which reads as a zero-width range when
+  // it's actually the last window of the day — show "11:59pm" instead.
+  function bucketEndLabel(b) {
+    var end = b + 30;
+    return end >= 1440 ? "11:59pm" : minutesLabel(end);
+  }
+
   function buildTimeSelects() {
     var buckets = uniqueSorted(state.rows.map(function (r) { return r.bucket; })).sort(function (a, b) { return a - b; });
     if (!buckets.length) return;
@@ -1393,11 +1402,11 @@
     buckets.forEach(function (b) {
       var o1 = document.createElement("option"); o1.value = b; o1.textContent = minutesLabel(b);
       fromSel.appendChild(o1);
-      var o2 = document.createElement("option"); o2.value = b; o2.textContent = minutesLabel(b + 30);
+      var o2 = document.createElement("option"); o2.value = b; o2.textContent = bucketEndLabel(b);
       toSel.appendChild(o2);
       var o3 = document.createElement("option"); o3.value = b; o3.textContent = minutesLabel(b);
       chartFromSel.appendChild(o3);
-      var o4 = document.createElement("option"); o4.value = b; o4.textContent = minutesLabel(b + 30);
+      var o4 = document.createElement("option"); o4.value = b; o4.textContent = bucketEndLabel(b);
       chartToSel.appendChild(o4);
     });
     fromSel.value = min;
@@ -1560,6 +1569,29 @@
     return Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
   }
 
+  // Abbreviates large raw counts as K/M (e.g. 2,505,107 -> "2.5M"). Digit count
+  // decides the tier: 4-6 digits -> thousands, 7+ digits -> millions. Ratios/
+  // averages (rotations per device, etc.) never reach these sizes and should
+  // keep using fmt() directly rather than this.
+  function fmtAbbr(n) {
+    var num = Number(n);
+    var sign = num < 0 ? "-" : "";
+    var abs = Math.abs(num);
+    if (abs < 1000) return fmt(num);
+    var digits = Math.floor(Math.log10(abs)) + 1;
+    var divisor = digits >= 7 ? 1e6 : 1000;
+    var suffix = digits >= 7 ? "M" : "K";
+    var scaled = abs / divisor;
+    // Guard against rounding up into the next tier, e.g. 999,950 -> "1000.0K"
+    // instead of "1.0M".
+    if (Math.round(scaled * 10) / 10 >= 1000) {
+      divisor *= 1000;
+      suffix = "M";
+      scaled = abs / divisor;
+    }
+    return sign + fmt(scaled, 1) + suffix;
+  }
+
   function kpiTile(label, value, unit, foot, hero) {
     return '<div class="kpi' + (hero ? ' kpi-hero' : '') + '"><span class="label">' + label + '</span>' +
       '<span class="value num">' + value + (unit ? '<span class="unit">' + unit + '</span>' : '') + '</span>' +
@@ -1584,10 +1616,10 @@
     var avgRotationSec = rotations ? playback / rotations : 0;
 
     $("kpiRow").innerHTML =
-      kpiTile("Rotations", fmt(rotations), "", events.size + " fixture" + (events.size === 1 ? "" : "s")) +
+      kpiTile("Rotations", fmtAbbr(rotations), "", events.size + " fixture" + (events.size === 1 ? "" : "s")) +
       kpiTile("Devices", fmt(deviceCount)) +
       kpiTile("Rotations / device", fmt(rotPerDevice, 1), "", "", true) +
-      kpiTile("Total playback", fmt(playbackMin, 0), "min") +
+      kpiTile("Total playback", fmtAbbr(playbackMin), "min") +
       kpiTile("Avg playback / device", fmt(avgPlaybackDevice, 1), "min", "", true) +
       kpiTile("Avg playback / rotation", fmt(avgRotationSec, 1), "s");
 
@@ -1617,7 +1649,7 @@
         var short = c.name.length > 52 ? c.name.slice(0, 49) + "…" : c.name;
         return '<div class="barrow" title="' + c.name.replace(/"/g, "&quot;") + '">' +
           '<span class="name">' + short + '</span>' +
-          '<span class="val"><b class="num">' + fmt(c.rotations) + '</b> rot · ' + c.devices + ' dev</span>' +
+          '<span class="val"><b class="num">' + fmtAbbr(c.rotations) + '</b> rot · ' + c.devices + ' dev</span>' +
           '<div class="track"><div class="fill" style="width:' + pct + '%"></div></div>' +
           '</div>';
       }).join("");
@@ -1646,8 +1678,8 @@
         return '<tr>' +
           '<td><span class="venue-badge"><span class="venue-dot ' + cls + '"></span>' + v.zone + '</span></td>' +
           '<td class="num-col num">' + fmt(v.devices) + '</td>' +
-          '<td class="num-col num">' + fmt(v.rotations) + '</td>' +
-          '<td class="num-col num">' + fmt(v.playback / 60, 0) + '</td>' +
+          '<td class="num-col num">' + fmtAbbr(v.rotations) + '</td>' +
+          '<td class="num-col num">' + fmtAbbr(v.playback / 60) + '</td>' +
           '</tr>';
       }).join("");
     }
@@ -1745,8 +1777,13 @@
   }
 
   function buildHeaderFields() {
-    var roundsArr = uniqueSorted(Array.from(filters.rounds));
-    var venuesArr = uniqueSorted(Array.from(filters.venues));
+    // Derived from the actual filtered rows (time window aside), not the raw
+    // round/venue chip selection — otherwise a report scoped to one fixture
+    // can claim a venue that isn't actually in it (e.g. leaving both venue
+    // chips on while filtering to a single MCG-only game).
+    var scopeRows = filteredRows(true);
+    var roundsArr = uniqueSorted(scopeRows.map(function (r) { return r.round; }));
+    var venuesArr = uniqueSorted(scopeRows.map(function (r) { return r.venue; }));
     var roundLabel = roundsArr.length ? "Round " + roundsArr.join(" + ") : "Round —";
     var venueLabel = venuesArr.length ? venuesArr.join(" + ") : "—";
     var roundVenue = roundLabel + " – " + venueLabel;
@@ -1755,9 +1792,7 @@
     if (filters.event !== "ALL") {
       matchup = parseMatchup(filters.event);
     } else {
-      var events = uniqueSorted(state.rows.filter(function (r) {
-        return filters.rounds.has(r.round) && filters.venues.has(r.venue);
-      }).map(function (r) { return r.event; }));
+      var events = uniqueSorted(scopeRows.map(function (r) { return r.event; }));
       matchup = events.length ? events.map(parseMatchup).join(", ") : "All fixtures";
     }
 
@@ -1766,7 +1801,7 @@
     var assetClient = escapeHtml(asset);
 
     var time = (state.hasTime && filters.timeFrom !== undefined)
-      ? minutesLabel(filters.timeFrom) + "–" + minutesLabel(filters.timeTo + 30)
+      ? minutesLabel(filters.timeFrom) + "–" + bucketEndLabel(filters.timeTo)
       : "";
 
     return { roundVenue: roundVenue, matchup: matchup, assetClient: assetClient, time: time, clientName: clientName };
@@ -1797,9 +1832,9 @@
 
     $("evRotPerDevice").textContent = rows.length ? fmt(rotPerDevice, 1) : "—";
     $("evAvgPlaybackDevice").textContent = rows.length ? fmt(avgPlaybackDevice, 1) + " min" : "—";
-    $("evRotations").textContent = fmt(rotations);
+    $("evRotations").textContent = fmtAbbr(rotations);
     $("evDevices").textContent = fmt(deviceCount);
-    $("evTotalPlayback").textContent = fmt(playbackMin, 0) + " min";
+    $("evTotalPlayback").textContent = fmtAbbr(playbackMin) + " min";
 
 
     var byBucket = {};

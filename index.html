@@ -1292,7 +1292,8 @@
       var airtime = parseInt(row[colIdx.Airtime], 10);
       if (!content || !address || !isFinite(timePlayed) || !isFinite(airtime)) { counters.skippedRows++; continue; }
 
-      var bucket = Math.floor(airtimeMinuteOfDay(airtime) / 30) * 30;
+      var exactMinute = airtimeMinuteOfDay(airtime);
+      var bucket = Math.floor(exactMinute / 30) * 30;
       var group = deriveContentGroup(content);
       var key = ctx.round + "|" + ctx.venue + "|" + ctx.event + "|" + group + "|" + content + "|" + address + "|" + bucket;
       var entry = agg[key];
@@ -1301,8 +1302,11 @@
       entry.playback += Math.round(timePlayed);
       counters.rows++;
 
+      // Keeps the exact minute (not the 30-min bucket above) — the report
+      // window rounds each edge to the nearest 30 min independently, so a
+      // 12:20 kickoff should give a 10:30 start, not 10:00.
       if (stateIdx !== undefined && KICKOFF_STATE_PATTERN.test(row[stateIdx] || "")) {
-        if (kickoffAgg[eventKey] === undefined || bucket < kickoffAgg[eventKey]) kickoffAgg[eventKey] = bucket;
+        if (kickoffAgg[eventKey] === undefined || exactMinute < kickoffAgg[eventKey]) kickoffAgg[eventKey] = exactMinute;
       }
     }
   }
@@ -1438,15 +1442,20 @@
     return end >= 1440 ? "11:59pm" : minutesLabel(end);
   }
 
-  // Report window rule: 2h before kickoff through 3h30m after — both offsets
-  // are multiples of 30 so the result is always bucket-aligned already, no
-  // rounding needed. `end` is stored as a bucket START (matching
-  // filters.timeTo elsewhere), whose displayed end-label is bucket+30 — so it's
-  // kickoff+180, not +210, to make the displayed end read as kickoff+3h30m.
+  // Report window rule: 2h before kickoff through 3h30m after — using the
+  // *exact* kickoff minute, with each edge rounded independently to the
+  // nearest 30 min (not the kickoff rounded first) — so a 12:20 kickoff
+  // gives a 10:30 start (nearest to 12:20-2h=10:20), not 10:00.
+  // `end` is stored as a bucket START (matching filters.timeTo elsewhere),
+  // whose displayed end-label is bucket+30 — so the displayed end (nearest
+  // to kickoff+3h30m) is computed first, then 30 is subtracted to store it.
   // Returns null if this fixture's kickoff wasn't detected.
-  function computeAutoReportWindow(kickoffBucket) {
-    if (kickoffBucket === null || kickoffBucket === undefined) return null;
-    return { start: Math.max(0, kickoffBucket - 120), end: Math.min(1410, kickoffBucket + 180) };
+  function nearestBucket(minute) { return Math.round(minute / 30) * 30; }
+  function computeAutoReportWindow(kickoffMinute) {
+    if (kickoffMinute === null || kickoffMinute === undefined) return null;
+    var start = nearestBucket(kickoffMinute - 120);
+    var displayEnd = nearestBucket(kickoffMinute + 210);
+    return { start: Math.max(0, start), end: Math.min(1410, displayEnd - 30) };
   }
 
   function buildTimeSelects() {

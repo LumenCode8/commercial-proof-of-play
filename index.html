@@ -898,6 +898,7 @@
           <select class="chip-select time-select" id="timeFromSelect"></select>
           <span class="time-sep">–</span>
           <select class="chip-select time-select" id="timeToSelect"></select>
+          <button type="button" class="chart-window-auto on" id="timeOfDayAutoBtn" title="Reset to auto: kickoff − 2h through kickoff + 3h30m (or full day if kickoff isn't known)">Auto</button>
         </div>
       </div>
     </div>
@@ -1060,7 +1061,7 @@
 (function () {
   "use strict";
 
-  var state = { rows: [], fileName: "", chartTimeAuto: true, timeBuckets: [], kickoffByEvent: {} };
+  var state = { rows: [], fileName: "", chartTimeAuto: true, timeOfDayAuto: true, timeBuckets: [], kickoffByEvent: {} };
   var filters = { rounds: new Set(), venues: new Set(), event: "ALL", group: "ALL" };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -1397,9 +1398,6 @@
   function buildTimeSelects() {
     var buckets = uniqueSorted(state.rows.map(function (r) { return r.bucket; })).sort(function (a, b) { return a - b; });
     if (!buckets.length) return;
-    var min = buckets[0], max = buckets[buckets.length - 1];
-    filters.timeFrom = min;
-    filters.timeTo = max;
     state.timeBuckets = buckets;
 
     var fromSel = $("timeFromSelect"), toSel = $("timeToSelect");
@@ -1416,19 +1414,26 @@
       var o4 = document.createElement("option"); o4.value = b; o4.textContent = bucketEndLabel(b);
       chartToSel.appendChild(o4);
     });
-    fromSel.value = min;
-    toSel.value = max;
 
     fromSel.onchange = function () {
+      state.timeOfDayAuto = false;
+      $("timeOfDayAutoBtn").classList.remove("on");
       filters.timeFrom = parseInt(fromSel.value, 10);
       if (filters.timeFrom > filters.timeTo) { filters.timeTo = filters.timeFrom; toSel.value = filters.timeFrom; }
       syncChartTimeWindow();
       render();
     };
     toSel.onchange = function () {
+      state.timeOfDayAuto = false;
+      $("timeOfDayAutoBtn").classList.remove("on");
       filters.timeTo = parseInt(toSel.value, 10);
       if (filters.timeTo < filters.timeFrom) { filters.timeFrom = filters.timeTo; fromSel.value = filters.timeTo; }
       syncChartTimeWindow();
+      render();
+    };
+    $("timeOfDayAutoBtn").onclick = function () {
+      state.timeOfDayAuto = true;
+      syncTimeOfDayAuto();
       render();
     };
 
@@ -1450,6 +1455,64 @@
     };
 
     state.chartTimeAuto = true;
+    state.timeOfDayAuto = true;
+    syncTimeOfDayAuto();
+  }
+
+  // Looks up the currently-selected single fixture's detected kickoff bucket
+  // (see processRawCSV / the KickoffBucket column), or null if "All fixtures"
+  // is selected or that fixture's kickoff wasn't detected.
+  function currentFixtureKickoff() {
+    if (filters.event === "ALL") return null;
+    for (var i = 0; i < state.rows.length; i++) {
+      var r = state.rows[i];
+      if (r.event === filters.event) {
+        var kb = state.kickoffByEvent[r.round + "|" + r.venue + "|" + r.event];
+        return (kb === null || kb === undefined) ? null : kb;
+      }
+    }
+    return null;
+  }
+
+  // Snaps a target minute to an actual loaded bucket — "down" finds the
+  // largest bucket <= target, "up" the smallest bucket >= target — since the
+  // kickoff-derived window's edges are arithmetic and may land on a bucket
+  // that happens to have no rows in the currently loaded data.
+  function snapToBucket(target, direction) {
+    var buckets = state.timeBuckets;
+    var best;
+    if (direction === "down") {
+      best = buckets[0];
+      for (var i = 0; i < buckets.length; i++) { if (buckets[i] <= target) best = buckets[i]; }
+    } else {
+      best = buckets[buckets.length - 1];
+      for (var j = buckets.length - 1; j >= 0; j--) { if (buckets[j] >= target) best = buckets[j]; }
+    }
+    return best;
+  }
+
+  // Time of day: defaults to kickoff − 2h through kickoff + 3h30m when
+  // exactly one fixture is selected and its kickoff was detected, or the
+  // full loaded day otherwise. Stays in sync until the user manually touches
+  // either select, at which point it stops auto-following (same pattern as
+  // the report chart window below).
+  function syncTimeOfDayAuto() {
+    if (!state.timeOfDayAuto || !state.timeBuckets.length) return;
+    var win = computeAutoReportWindow(currentFixtureKickoff());
+    var start, end;
+    if (win) {
+      start = snapToBucket(win.start, "down");
+      end = snapToBucket(win.end, "up");
+    } else {
+      start = state.timeBuckets[0];
+      end = state.timeBuckets[state.timeBuckets.length - 1];
+    }
+    filters.timeFrom = start;
+    filters.timeTo = end;
+    var fromSel = $("timeFromSelect"), toSel = $("timeToSelect");
+    if (fromSel) fromSel.value = filters.timeFrom;
+    if (toSel) toSel.value = filters.timeTo;
+    $("timeOfDayAutoBtn").classList.add("on");
     syncChartTimeWindow();
   }
 
@@ -1541,7 +1604,8 @@
     });
     sel.value = events.indexOf(prev) >= 0 ? prev : "ALL";
     filters.event = sel.value;
-    sel.onchange = function () { filters.event = sel.value; render(); };
+    syncTimeOfDayAuto();
+    sel.onchange = function () { filters.event = sel.value; syncTimeOfDayAuto(); render(); };
   }
 
   function buildGroupSelect() {

@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Commercial - IPTV playback report</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0%25' stop-color='%232ff3e0'/%3E%3Cstop offset='52%25' stop-color='%237ee96b'/%3E%3Cstop offset='100%25' stop-color='%23e9f23d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%230a0d10'/%3E%3Crect width='64' height='64' rx='14' fill='none' stroke='url(%23g)' stroke-width='3'/%3E%3Cpath d='M25 20 L46 32 L25 44 Z' fill='url(%23g)'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1059,7 +1060,7 @@
 (function () {
   "use strict";
 
-  var state = { rows: [], fileName: "", chartTimeAuto: true, timeBuckets: [] };
+  var state = { rows: [], fileName: "", chartTimeAuto: true, timeBuckets: [], kickoffByEvent: {} };
   var filters = { rounds: new Set(), venues: new Set(), event: "ALL", group: "ALL" };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -1107,10 +1108,13 @@
           Device: header.indexOf("Device"),
           TimeBucketMin: header.indexOf("TimeBucketMin"),
           Rotations: header.indexOf("Rotations"),
-          PlaybackSeconds: header.indexOf("PlaybackSeconds")
+          PlaybackSeconds: header.indexOf("PlaybackSeconds"),
+          KickoffBucket: header.indexOf("KickoffBucket")
         };
         var hasTime = idx.TimeBucketMin >= 0;
+        var hasKickoff = idx.KickoffBucket >= 0;
         var rows = [];
+        var kickoffByEvent = {};
         for (var r = 1; r < table.length; r++) {
           var t = table[r];
           if (!t || t.length < 2) continue;
@@ -1125,9 +1129,17 @@
             rotations: parseInt(t[idx.Rotations], 10) || 0,
             playback: parseFloat(t[idx.PlaybackSeconds]) || 0
           });
+          if (hasKickoff) {
+            var eventKey = t[idx.Round] + "|" + t[idx.Venue] + "|" + t[idx.Event];
+            if (!(eventKey in kickoffByEvent)) {
+              var kb = t[idx.KickoffBucket];
+              kickoffByEvent[eventKey] = kb === "" || kb === undefined ? null : parseInt(kb, 10);
+            }
+          }
         }
         state.hasTime = hasTime;
         state.rows = rows;
+        state.kickoffByEvent = kickoffByEvent;
         state.fileName = file.name;
         onDataLoaded();
       } catch (err) {
@@ -1210,7 +1222,12 @@
     return { round: roundNum, venue: venue, event: event };
   }
 
-  function processRawCSV(text, ctx, agg, counters) {
+  // Marks a fixture's live-play state — "During" at MCG, "IN GAME - <club
+  // code>" at Marvel. No single word is common to both venues' scripts, but
+  // every venue's live-play state contains one of these two phrases.
+  var KICKOFF_STATE_PATTERN = /DURING|IN GAME/i;
+
+  function processRawCSV(text, ctx, agg, counters, kickoffAgg) {
     var table = parseCSV(text);
     if (!table.length) return;
     var header = table[0];
@@ -1225,6 +1242,8 @@
       counters.badFiles.push(ctx.fileName + " (missing columns: " + missing.concat(colIdx.Address === undefined ? ["Address/MAC/IP"] : []).join(", ") + ")");
       return;
     }
+    var stateIdx = colIdx["State Name"];
+    var eventKey = ctx.round + "|" + ctx.venue + "|" + ctx.event;
     for (var r = 1; r < table.length; r++) {
       var row = table[r];
       if (!row || row.length < 2) continue;
@@ -1242,6 +1261,10 @@
       entry.rotations += 1;
       entry.playback += Math.round(timePlayed);
       counters.rows++;
+
+      if (stateIdx !== undefined && KICKOFF_STATE_PATTERN.test(row[stateIdx] || "")) {
+        if (kickoffAgg[eventKey] === undefined || bucket < kickoffAgg[eventKey]) kickoffAgg[eventKey] = bucket;
+      }
     }
   }
 
@@ -1256,6 +1279,7 @@
     $("app").style.display = "none";
 
     var agg = {};
+    var kickoffAgg = {};
     var counters = { rows: 0, skippedRows: 0, badFiles: [] };
     var unclassified = 0;
 
@@ -1271,7 +1295,7 @@
       ctx.fileName = file.name;
       try {
         var text = await readFileText(file);
-        processRawCSV(text, ctx, agg, counters);
+        processRawCSV(text, ctx, agg, counters, kickoffAgg);
       } catch (err) {
         counters.badFiles.push(file.name + " (" + err.message + ")");
       }
@@ -1292,6 +1316,7 @@
 
     state.hasTime = true;
     state.rows = rows;
+    state.kickoffByEvent = kickoffAgg;
     var roundSet = uniqueSorted(rows.map(function (r) { return r.round; }));
     state.fileName = files.length + " raw export" + (files.length === 1 ? "" : "s") + " merged in-browser — Round " + roundSet.join(", ");
 
@@ -1356,6 +1381,17 @@
   function bucketEndLabel(b) {
     var end = b + 30;
     return end >= 1440 ? "11:59pm" : minutesLabel(end);
+  }
+
+  // Report window rule: 2h before kickoff through 3h30m after — both offsets
+  // are multiples of 30 so the result is always bucket-aligned already, no
+  // rounding needed. `end` is stored as a bucket START (matching
+  // filters.timeTo elsewhere), whose displayed end-label is bucket+30 — so it's
+  // kickoff+180, not +210, to make the displayed end read as kickoff+3h30m.
+  // Returns null if this fixture's kickoff wasn't detected.
+  function computeAutoReportWindow(kickoffBucket) {
+    if (kickoffBucket === null || kickoffBucket === undefined) return null;
+    return { start: Math.max(0, kickoffBucket - 120), end: Math.min(1410, kickoffBucket + 180) };
   }
 
   function buildTimeSelects() {

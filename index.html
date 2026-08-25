@@ -1223,6 +1223,44 @@
     return { round: roundNum, venue: venue, event: event };
   }
 
+  // A CSV sitting anywhere under a folder literally named "AFL Fixture" is
+  // treated as the real-kickoff lookup (see fetch_afl_kickoffs.py), not a
+  // Detailed_Report export — drop the file it produces into that folder
+  // alongside the Round {n}/ folders and it's picked up automatically.
+  function isFixtureFile(file) {
+    var segs = pathSegments(file);
+    for (var i = 0; i < segs.length; i++) {
+      if (segs[i].trim().toLowerCase() === "afl fixture") return true;
+    }
+    return false;
+  }
+
+  // Parses an AFL-fixture CSV (Round, Venue, Event, KickoffBucket columns,
+  // same shape fetch_afl_kickoffs.py writes) into the aflKickoffAgg map.
+  function processFixtureCSV(text, aflKickoffAgg, counters) {
+    var table = parseCSV(text);
+    if (!table.length) return;
+    var header = table[0].map(function (h) { return h.trim(); });
+    var idx = {
+      Round: header.indexOf("Round"),
+      Venue: header.indexOf("Venue"),
+      Event: header.indexOf("Event"),
+      KickoffBucket: header.indexOf("KickoffBucket")
+    };
+    if (idx.Round < 0 || idx.Venue < 0 || idx.Event < 0 || idx.KickoffBucket < 0) {
+      counters.badFiles.push("AFL Fixture CSV (missing Round/Venue/Event/KickoffBucket columns)");
+      return;
+    }
+    for (var r = 1; r < table.length; r++) {
+      var row = table[r];
+      if (!row || row.length < 4) continue;
+      var kb = parseInt(row[idx.KickoffBucket], 10);
+      if (!isFinite(kb)) continue;
+      var key = row[idx.Round] + "|" + row[idx.Venue] + "|" + row[idx.Event];
+      aflKickoffAgg[key] = kb;
+    }
+  }
+
   // Marks a fixture's live-play state — "During" at MCG, "IN GAME - <club
   // code>" at Marvel. No single word is common to both venues' scripts, but
   // every venue's live-play state contains one of these two phrases.
@@ -1281,6 +1319,7 @@
 
     var agg = {};
     var kickoffAgg = {};
+    var aflKickoffAgg = {};
     var counters = { rows: 0, skippedRows: 0, badFiles: [] };
     var unclassified = 0;
 
@@ -1290,6 +1329,16 @@
       $("progressDetail").textContent = file.webkitRelativePath || file.name;
       $("progressFill").style.width = Math.round(((i) / files.length) * 100) + "%";
       await yieldToUI();
+
+      if (isFixtureFile(file)) {
+        try {
+          var fixtureText = await readFileText(file);
+          processFixtureCSV(fixtureText, aflKickoffAgg, counters);
+        } catch (err) {
+          counters.badFiles.push(file.name + " (" + err.message + ")");
+        }
+        continue;
+      }
 
       var ctx = classifyFile(file);
       if (!ctx) { unclassified++; continue; }
@@ -1317,7 +1366,12 @@
 
     state.hasTime = true;
     state.rows = rows;
-    state.kickoffByEvent = kickoffAgg;
+    // AFL Fixture data (real kickoff times) wins over State Name detection,
+    // same priority as the duckdb pipeline — see processFixtureCSV above.
+    var finalKickoff = {};
+    Object.keys(kickoffAgg).forEach(function (k) { finalKickoff[k] = kickoffAgg[k]; });
+    Object.keys(aflKickoffAgg).forEach(function (k) { finalKickoff[k] = aflKickoffAgg[k]; });
+    state.kickoffByEvent = finalKickoff;
     var roundSet = uniqueSorted(rows.map(function (r) { return r.round; }));
     state.fileName = files.length + " raw export" + (files.length === 1 ? "" : "s") + " merged in-browser — Round " + roundSet.join(", ");
 

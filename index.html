@@ -376,6 +376,7 @@
   }
   .panel-head .n { font-size: 11.5px; color: var(--ink-faint); }
   .time-panel-head { align-items: center; }
+  #timeChartHighlightNote { margin-left: 6px; font-weight: 500; }
   .time-panel-head > div:first-child { display: flex; flex-direction: column; gap: 2px; }
   .panel-body { padding: 6px 0 10px; }
 
@@ -464,11 +465,10 @@
     align-items: center;
     flex: 1 0 6px;
     min-width: 6px;
-    max-width: 15px;
   }
   .tbar {
     width: 100%;
-    height: 80px;
+    height: 140px;
     background: var(--bar-track);
     border-radius: 3px 3px 0 0;
     position: relative;
@@ -510,6 +510,23 @@
   }
   .timechart-tailnote.show { display: block; }
   .timechart-tailnote strong { color: var(--ink-muted); font-weight: 600; }
+
+  .tbar-tooltip {
+    position: fixed;
+    display: none;
+    pointer-events: none;
+    z-index: 50;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--ink);
+    white-space: nowrap;
+    box-shadow: var(--shadow);
+  }
+  .tbar-tooltip.show { display: block; }
 
   .empty-state {
     padding: 48px 24px;
@@ -914,7 +931,7 @@
           <select class="chip-select time-select" id="chartTimeFromSelect"></select>
           <span class="time-sep">–</span>
           <select class="chip-select time-select" id="chartTimeToSelect"></select>
-          <button type="button" class="chart-window-auto on" id="chartTimeAutoBtn" title="Reset to auto: overall start + 3 hours">Auto</button>
+          <button type="button" class="chart-window-auto on" id="chartTimeAutoBtn" title="Reset to auto: matches the Time of day filter above">Auto</button>
         </div>
       </div>
       <input type="text" id="clientNameInput" class="client-input" placeholder="Client name (optional)" maxlength="60">
@@ -926,7 +943,7 @@
     <div class="panel">
       <div class="panel-head time-panel-head">
         <div>
-          <h2>Playback by time of day</h2>
+          <h2>Playback by time of day <span class="n" id="timeChartHighlightNote"></span></h2>
           <span class="n" id="timeChartNote">30-min windows, by rotation start time</span>
         </div>
       </div>
@@ -935,6 +952,7 @@
         <div class="timechart-tailnote" id="timeChartTailNote"></div>
       </div>
     </div>
+    <div class="tbar-tooltip" id="tbarTooltip"></div>
 
     <div class="panels">
       <div class="panel">
@@ -1579,19 +1597,14 @@
     syncChartTimeWindow();
   }
 
-  // Report chart window: defaults to "overall start + 3 hours" through the
-  // overall end, clamped to available buckets — a client report's chart
-  // usually only needs the game-time window, not the full pre-show ramp-up.
+  // Report chart window: defaults to exactly matching the Time of day filter
+  // above — the PDF chart shows the same window as the live data by default.
   // Stays in sync with the overall time filter until the user manually
-  // touches either chart-window select, at which point it stops auto-following.
+  // touches either chart-window select (e.g. to narrow the PDF chart to just
+  // game time), at which point it stops auto-following.
   function syncChartTimeWindow() {
     if (!state.chartTimeAuto || !state.timeBuckets.length) return;
-    var target = filters.timeFrom + 180;
-    var candidates = state.timeBuckets.filter(function (b) { return b >= filters.timeFrom && b <= filters.timeTo; });
-    if (!candidates.length) candidates = state.timeBuckets;
-    var from = candidates[0];
-    candidates.forEach(function (b) { if (b <= target) from = b; });
-    filters.chartTimeFrom = from;
+    filters.chartTimeFrom = filters.timeFrom;
     filters.chartTimeTo = filters.timeTo;
     var chartFromSel = $("chartTimeFromSelect"), chartToSel = $("chartTimeToSelect");
     if (chartFromSel) chartFromSel.value = filters.chartTimeFrom;
@@ -1880,9 +1893,9 @@
       var v = byBucket[b];
       var pct = Math.max(3, Math.round((v.rotations / maxVal) * 100));
       var inRange = b >= filters.timeFrom && b <= filters.timeTo;
-      var title = minutesLabel(b) + "–" + minutesLabel(b + 30) + ": " + fmt(v.rotations) + " rotations, " + fmt(v.playback / 60, 0) + " min playback";
+      var tip = minutesLabel(b) + "–" + minutesLabel(b + 30) + ": " + fmt(v.rotations) + " rotations, " + fmt(v.playback / 60, 0) + " min playback";
       return '<div class="tbar-col">' +
-        '<div class="tbar ' + (inRange ? "in" : "out") + '" title="' + title + '">' +
+        '<div class="tbar ' + (inRange ? "in" : "out") + '" data-tip="' + escapeHtml(tip) + '">' +
         '<span class="fill" style="height:' + pct + '%"></span></div>' +
         '<span class="tbar-label">' + minutesLabel(b) + '</span>' +
         '</div>';
@@ -1891,6 +1904,11 @@
     var note = buildTailNote(buckets, byBucket, maxVal);
     tailNote.innerHTML = note;
     tailNote.className = "timechart-tailnote" + (note ? " show" : "");
+
+    var highlightNote = $("timeChartHighlightNote");
+    if (highlightNote) {
+      highlightNote.textContent = "· highlighting " + minutesLabel(filters.timeFrom) + "–" + bucketEndLabel(filters.timeTo);
+    }
   }
 
   // --- Client report export ---
@@ -1998,5 +2016,22 @@
   $("evPrintBtn").addEventListener("click", function () {
     window.print();
   });
+
+  // Custom tooltip for the time-of-day chart bars — the native title
+  // attribute has a slow, inconsistent hover delay and shows nothing for
+  // zero-height bars, which reads as "hover doesn't work".
+  (function () {
+    var tooltip = $("tbarTooltip");
+    var chartEl = $("timeChart");
+    chartEl.addEventListener("mousemove", function (e) {
+      var bar = e.target.closest(".tbar");
+      if (!bar) { tooltip.classList.remove("show"); return; }
+      tooltip.textContent = bar.getAttribute("data-tip") || "";
+      tooltip.style.left = (e.clientX + 14) + "px";
+      tooltip.style.top = (e.clientY + 14) + "px";
+      tooltip.classList.add("show");
+    });
+    chartEl.addEventListener("mouseleave", function () { tooltip.classList.remove("show"); });
+  })();
 })();
 </script>
